@@ -65,11 +65,43 @@ export function createPlayer(camera, domElement, scene) {
   let greetingFacing = 0;
   let teacherConversation = null;
   const greetedTeachers = new Set();
-  const schoolGreetingPoints = [
-    { name: 'thầy Nguyễn Đức Hiền', x: schoolZone.x - 7, z: schoolZone.z + 91 },
-    { name: 'thầy Phan Văn Cường', x: schoolZone.x + 7, z: schoolZone.z + 91 },
-    { name: 'cô Vân Anh', x: schoolZone.x - 11.25, z: schoolZone.z + 58.75 },
-    { name: 'cô Hồng', x: schoolZone.x + 11.25, z: schoolZone.z + 58.75 }
+  const schoolTeachers = [
+    {
+      name: 'thầy Nguyễn Đức Hiền',
+      x: schoolZone.x - 7,
+      z: schoolZone.z + 90,
+      replies: [
+        'Thầy Hiền: “Trường mình có khuôn viên rộng, nhiều cây xanh và các sân thể thao. Em hãy cùng các bạn giữ gìn trường lớp nhé!”',
+        'Thầy Hiền: “Em hãy chăm chỉ, chủ động hỏi thầy cô khi chưa hiểu bài và luôn giúp đỡ bạn bè. Mỗi ngày tiến bộ một chút là rất đáng quý.”'
+      ]
+    },
+    {
+      name: 'thầy Phan Văn Cường',
+      x: schoolZone.x + 7,
+      z: schoolZone.z + 90,
+      replies: [
+        'Thầy Cường: “Các em hãy tích cực tham gia hoạt động thể thao, chơi đoàn kết và luôn tuân thủ nội quy sân trường nhé!”',
+        'Thầy Cường: “Muốn học tốt, em hãy lập thời gian biểu hợp lý, tập trung trong giờ học và đừng ngại trao đổi với thầy cô.”'
+      ]
+    },
+    {
+      name: 'cô Vân Anh',
+      x: schoolZone.x - 11.25,
+      z: schoolZone.z + 58.75,
+      replies: [
+        'Cô Vân Anh: “Đọc sách mỗi ngày giúp em biết thêm nhiều điều. Em có thể bắt đầu từ cuốn sách mình yêu thích nhé!”',
+        'Cô Vân Anh: “Hãy tự tin phát biểu và kiên trì với mục tiêu của mình. Cô tin em sẽ ngày càng tiến bộ.”'
+      ]
+    },
+    {
+      name: 'cô Hồng',
+      x: schoolZone.x + 11.25,
+      z: schoolZone.z + 58.75,
+      replies: [
+        'Cô Hồng: “Một lời hỏi thăm hay sự giúp đỡ nhỏ cũng có thể làm bạn vui hơn. Các em hãy luôn quan tâm đến nhau nhé!”',
+        'Cô Hồng: “Khi gặp bài khó, em hãy bình tĩnh đọc kỹ đề, thử từng bước và nhờ cô hỗ trợ nếu cần.”'
+      ]
+    }
   ];
 
   let moveForward = false;
@@ -130,31 +162,37 @@ export function createPlayer(camera, domElement, scene) {
   document.addEventListener('keyup', onKeyUp);
 
   function startTeacherConversation() {
-    const teacherPosition = new THREE.Vector3(schoolZone.x - 7, 0, schoolZone.z + 90);
-    if (playerPosition.distanceTo(teacherPosition) > 11.5) return false;
+    const teacher = getNearbyTeacher();
+    if (!teacher) return false;
 
-    teacherConversation = { awaitingChoice: true };
+    teacherConversation = { teacher, awaitingChoice: true };
+    document.getElementById('teacher-dialog-title').textContent =
+      `Trò chuyện với ${teacher.name}`;
     document.getElementById('teacher-dialog').hidden = false;
     showTeacherQuestion();
     return true;
   }
 
+  function getNearbyTeacher() {
+    return schoolTeachers.find(teacher =>
+      Math.hypot(playerPosition.x - teacher.x, playerPosition.z - teacher.z) <= 11.5
+    ) || null;
+  }
+
   function showTeacherQuestion() {
     teacherConversation.awaitingChoice = true;
     document.getElementById('teacher-dialog-text').textContent =
-      'Thầy Hiền mỉm cười: “Chào em! Em muốn hỏi thầy điều gì?”';
+      `${teacherConversation.teacher.name} mỉm cười: “Chào em! Em muốn hỏi điều gì?”`;
     document.getElementById('teacher-dialog-choices').textContent =
-      '1 — Hỏi về trường  ·  2 — Hỏi lời khuyên học tập  ·  3 — Chào tạm biệt';
+      '1 — Hỏi về trường/lớp  ·  2 — Xin lời khuyên  ·  3 — Chào tạm biệt';
   }
 
   function answerTeacherConversation(choice) {
-    const replies = {
-      1: 'Thầy Hiền: “Trường mình có khuôn viên rộng, nhiều cây xanh và các sân thể thao. Em hãy cùng các bạn giữ gìn trường lớp nhé!”',
-      2: 'Thầy Hiền: “Em hãy chăm chỉ, chủ động hỏi thầy cô khi chưa hiểu bài và luôn giúp đỡ bạn bè. Mỗi ngày tiến bộ một chút là rất đáng quý.”',
-      3: 'Thầy Hiền: “Tạm biệt em, chúc em có một ngày học tập thật vui!”'
-    };
+    const teacher = teacherConversation.teacher;
     teacherConversation.awaitingChoice = false;
-    document.getElementById('teacher-dialog-text').textContent = replies[choice];
+    document.getElementById('teacher-dialog-text').textContent = choice === 3
+      ? `${teacher.name}: “Tạm biệt em, chúc em có một ngày học tập thật vui!”`
+      : teacher.replies[choice - 1];
     document.getElementById('teacher-dialog-choices').textContent =
       choice === 3 ? 'Q — Kết thúc trò chuyện' : 'E — Hỏi tiếp  ·  Q — Kết thúc trò chuyện';
     soundscape.playInteraction(false);
@@ -216,8 +254,16 @@ export function createPlayer(camera, domElement, scene) {
     if (!controls.isLocked) return;
 
     soundscape.update(playerPosition, delta);
+    const hint = document.getElementById('hint');
+    if (ridingScooter) {
+      hint.textContent = 'WASD lái xe máy · Dừng đèn đỏ · F xuống xe · Enter chat';
+    } else if (getNearbyTeacher()) {
+      hint.textContent = 'E — Trò chuyện với thầy/cô · 1–3 chọn câu hỏi · Q kết thúc';
+    } else {
+      hint.textContent = 'WASD di chuyển · E khám phá · F lên xe máy · Shift chạy';
+    }
     if (!ridingScooter && greetingTimer <= 0) {
-      const teacher = schoolGreetingPoints.find(candidate =>
+      const teacher = schoolTeachers.find(candidate =>
         !greetedTeachers.has(candidate.name) &&
         Math.hypot(playerPosition.x - candidate.x, playerPosition.z - candidate.z) < 14
       );

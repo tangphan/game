@@ -1988,6 +1988,7 @@ function createSchool(scene) {
   createSchoolFootballCourt(group, -24, 22);
   createSchoolVolleyballCourt(group, 34, 24);
   createSchoolStudents(group);
+  createSchoolStudentLine(group);
   createSchoolFountain(group, 0, -4);
   createSchoolFlag(group, 0, -25);
   createSchoolFlowerBed(group, -22, -9, 15, 7);
@@ -2278,6 +2279,72 @@ function createSchoolStudents(group) {
   ball.castShadow = true;
   group.add(ball);
   animated.schoolVolleyBall = ball;
+}
+
+function createSchoolStudentLine(group) {
+  const names = [
+    'Thịnh', 'Anh Thư', 'Minh Thư', 'Nha Trang', 'Quang', 'Khánh', 'Bảo',
+    'Hùng', 'Mạnh', 'Vi', 'Mai', 'Tân', 'Phát', 'Phúc', 'Hưng', 'Dũng',
+    'Giang', 'Kiệt', 'Nghĩa', 'Hiển', 'Sang', 'Hiếu', 'Duy', 'Thọ',
+    'Mai Ngọc', 'Tiến', 'Quý', 'Thùy Linh', 'Lê Linh', 'Vương', 'Quân',
+    'Trà My', 'Công', 'Huy', 'Đạt', 'Ứng', 'Huy'
+  ];
+  const uniforms = [0x315d86, 0x3f7058, 0x9b4c54, 0x805b92, 0x8a6d4d];
+  const positions = [];
+  let seed = 20261105;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 0x100000000;
+  };
+  let attempts = 0;
+  while (positions.length < names.length && attempts < 3000) {
+    attempts++;
+    const position = {
+      x: -56 + random() * 112,
+      z: -5 + random() * 60
+    };
+    if (positions.some(existing =>
+      Math.hypot(position.x - existing.x, position.z - existing.z) < 9.5
+    )) continue;
+    positions.push(position);
+  }
+  if (positions.length !== names.length) {
+    positions.length = 0;
+    for (let row = 0; row < 7; row++) {
+      for (let column = 0; column < 6; column++) {
+        positions.push({
+          x: -46.25 + column * 18.5 + (row % 2) * 9.25,
+          z: -3 + row * 8.2
+        });
+      }
+    }
+    for (let index = positions.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [positions[index], positions[swapIndex]] = [positions[swapIndex], positions[index]];
+    }
+  }
+
+  names.forEach((name, index) => {
+    const student = makeNPC(uniforms[index % uniforms.length], index);
+    student.position.set(positions[index].x, 0, positions[index].z);
+    student.rotation.y = Math.PI;
+    student.scale.setScalar(0.88);
+
+    const nameLabel = createFloatingLabel(name, 0x24485b);
+    nameLabel.position.set(0, 4.4, 0);
+    nameLabel.scale.set(5.8, 1.15, 1);
+    student.add(nameLabel);
+    group.add(student);
+    animated.schoolStudents.push({
+      npc: student,
+      x: positions[index].x,
+      z: positions[index].z,
+      phase: random() * Math.PI * 2,
+      speed: 0.85 + random() * 0.4,
+      rangeX: 3.5 + random() * 2,
+      rangeZ: 1.5 + random() * 1.8
+    });
+  });
 }
 
 function createSchoolBuilding(group, building, materials) {
@@ -3315,25 +3382,37 @@ function makeNPC(color, variation = 0) {
   nose.position.set(0, 2.68, 0.37);
   g.add(nose);
 
+  const armMeshes = [];
+  const legMeshes = [];
   [-1, 1].forEach(side => {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.52, 4, 8), cloth);
-    arm.position.set(side * 0.56, 1.82, 0);
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.56, 2.08, 0);
     arm.rotation.z = side * -0.12;
-    arm.castShadow = true;
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.52, 4, 8), cloth);
+    sleeve.position.y = -0.26;
+    sleeve.castShadow = true;
+    arm.add(sleeve);
     g.add(arm);
+    armMeshes.push(arm);
     const hand = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), skin);
-    hand.position.set(side * 0.58, 1.37, 0.02);
-    g.add(hand);
+    hand.position.set(side * 0.02, -0.7, 0.02);
+    arm.add(hand);
 
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.55, 4, 8), trousers);
-    leg.position.set(side * 0.2, 0.63, 0);
-    leg.castShadow = true;
-    g.add(leg);
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.2, 0.98, 0);
+    const trousersLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.55, 4, 8), trousers);
+    trousersLeg.position.y = -0.3;
+    trousersLeg.castShadow = true;
+    leg.add(trousersLeg);
     const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.48), shoes);
-    shoe.position.set(side * 0.2, 0.13, 0.09);
-    g.add(shoe);
+    shoe.position.set(0, -0.85, 0.09);
+    leg.add(shoe);
+    g.add(leg);
+    legMeshes.push(leg);
   });
 
+  g.userData.armMeshes = armMeshes;
+  g.userData.legMeshes = legMeshes;
   return g;
 }
 
@@ -3385,12 +3464,20 @@ export function updateWorld(time, delta) {
     npc.rotation.y = -d.angle + Math.PI / 2;
   });
 
-  animated.schoolStudents.forEach(({ npc, x, z, phase }) => {
-    const playTime = time * 1.8 + phase;
-    npc.position.x = x + Math.sin(playTime) * 1.35;
-    npc.position.z = z + Math.cos(playTime * 0.7) * 0.55;
-    npc.position.y = Math.max(0, Math.sin(playTime * 2.2)) * 0.18;
-    npc.rotation.y = Math.atan2(34 - npc.position.x, 24 - npc.position.z);
+  animated.schoolStudents.forEach(({ npc, x, z, phase, speed, rangeX, rangeZ }) => {
+    const runTime = time * speed + phase;
+    npc.position.x = x + Math.cos(runTime) * rangeX;
+    npc.position.z = z + Math.sin(runTime) * rangeZ;
+    npc.position.y = Math.abs(Math.sin(runTime * 3)) * 0.14;
+    npc.rotation.y = Math.atan2(-Math.sin(runTime) * rangeX, Math.cos(runTime) * rangeZ);
+    const stride = Math.sin(runTime * 5) * 0.62;
+    npc.userData.armMeshes.forEach((arm, index) => {
+      arm.rotation.x = index === 0 ? stride : -stride;
+      arm.rotation.z = (index === 0 ? -1 : 1) * (0.12 + Math.abs(stride) * 0.1);
+    });
+    npc.userData.legMeshes.forEach((leg, index) => {
+      leg.rotation.x = index === 0 ? -stride : stride;
+    });
   });
   if (animated.schoolVolleyBall) {
     animated.schoolVolleyBall.position.y = 1.2 + Math.abs(Math.sin(time * 2.4)) * 2.2;

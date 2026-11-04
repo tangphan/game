@@ -17,7 +17,7 @@ Game web 3D phiêu lưu khám phá huyện Yên Thành, Nghệ An.
 - THPT Phan Đăng Lưu là trường duy nhất trong game và là công trình cao nhất; sân bóng có khán đài, cầu gỗ và bờ lau sông Dinh, đập, trại cừu
 - Cầu Bến Hàng ở Phúc Thành có quầy hàng rong và người dân bán rau quả, thức ăn quê
 - Khuôn viên THPT Phan Đăng Lưu được mở rộng, có sân lát gạch, khối lớp học vàng ba tầng với điểm nhấn đỏ, phòng bảo vệ, nhà xe có vạch đỗ, sân bóng đá và bóng chuyền, vườn hoa, đài phun nước, cột cờ Việt Nam
-- Khuôn viên trường có tường rào bao quanh, cổng vào và hàng dừa cao ven tường; thầy cô cao ngang nhân vật, có bảng tên và được nhân vật tự động chào khi đến gần; nhấn E cạnh thầy Nguyễn Đức Hiền để trò chuyện theo lựa chọn; học sinh chơi bóng chuyền trên sân
+- Khuôn viên trường có tường rào bao quanh, cổng vào và hàng dừa cao ven tường; thầy cô cao ngang nhân vật, có bảng tên và được nhân vật tự động chào khi đến gần; nhấn E cạnh bất kỳ thầy cô nào để trò chuyện theo lựa chọn; 37 học sinh có tên chạy qua lại rải rác trong sân, bên cạnh nhóm học sinh chơi bóng chuyền
 - Thêm xóm nhà mái ngói, đình làng và các thửa ruộng lúa
 - NPC và đàn cừu chuyển động; khu vực có mô tả và điểm tương tác riêng
 - Âm thanh gió, chim, nước ven sông, bước chân và tương tác (có nút tắt/mở)
