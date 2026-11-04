@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khám Phá Yên Thành</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="ui">
+    <div id="location">Đang khám phá Yên Thành...</div>
+    <div id="zone-description">Khám phá những con đường làng, cánh đồng và dòng sông.</div>
+    <div id="hint">WASD di chuyển · E khám phá · F lên xe máy · Shift chạy</div>
+    <button id="sound-toggle" type="button" aria-pressed="true" data-muted="false">🔊 Âm thanh: bật</button>
+  </div>
+
+  <canvas id="minimap" width="180" height="180"></canvas>
+
+  <div id="dialog"></div>
+  <section id="teacher-dialog" role="dialog" aria-labelledby="teacher-dialog-title" aria-live="polite" hidden>
+    <h2 id="teacher-dialog-title">Trò chuyện với thầy Nguyễn Đức Hiền</h2>
+    <p id="teacher-dialog-text"></p>
+    <p id="teacher-dialog-choices"></p>
+  </section>
+
+  <div id="blocker">
+    <div class="content">
+      <h1>Khám Phá Yên Thành </h1>
+      <p class="subtitle">Huyện Yên Thành · Nghệ An</p>
+      <p class="intro">Bắt đầu ngay trước cổng trường THPT Phan Đăng Lưu, rồi khám phá miền quê Yên Thành: sân bóng Phong Liên, sông Dinh, đập Vệ Vừng và đàn cừu Bảo Thành.</p>
+      <label id="player-name-label" class="field-label" for="player-name">Tên nhân vật</label>
+      <input id="player-name" class="room-input" type="text" maxlength="18" autocomplete="nickname" placeholder="Ví dụ: Thanh" value="" />
+      <div id="room-setup">
+        <button id="create-room" class="game-button primary" type="button">Tạo phòng mới</button>
+        <div class="join-row">
+          <input id="room-code-input" class="room-input room-code-input" type="text" maxlength="6" autocomplete="off" placeholder="Mã phòng" aria-label="Mã phòng" />
+          <button id="join-room" class="game-button" type="button">Vào phòng</button>
+        </div>
+        <button id="play-solo" class="game-button" type="button">Chơi một mình</button>
+      </div>
+      <button id="resume-game" class="game-button primary" type="button" hidden>Vào chơi</button>
+      <p id="connection-status" role="status" aria-live="polite">Tạo phòng hoặc nhập mã bạn bè gửi để chơi cùng.</p>
+      <ul aria-label="Điều khiển">
+        <li><b>WASD</b> — Di chuyển</li>
+        <li><b>Chuột</b> — Xoay camera</li>
+        <li><b>Shift</b> — Chạy nhanh</li>
+        <li><b>E</b> — Khám phá địa điểm</li>
+        <li><b>E gần thầy Hiền</b> — Trò chuyện; phím 1–3 chọn câu hỏi, E hỏi tiếp, Q kết thúc</li>
+        <li><b>F</b> — Lên/xuống xe máy</li>
+        <li><b>Đèn đỏ</b> — Dừng xe; vượt đèn sẽ bị CSGT giữ lại</li>
+        <li><b>Enter</b> — Mở chat</li>
+      </ul>
+      <p class="note">Đường chính có giao lộ, vạch qua đường và vỉa hè; mỗi xã có chợ và quán ăn mang tên địa phương. THPT Phan Đăng Lưu là trường học duy nhất, nằm trong thị trấn Yên Thành. Khám phá cầu Bến Hàng và những quầy hàng rong ở Phúc Thành; dừng xe khi đèn đỏ để tránh bị CSGT giữ lại.<br>
+      Tạo phòng rồi gửi mã mời để chơi trực tuyến, hoặc chọn chơi một mình.</p>
+    </div>
+  </div>
+
+  <aside id="social-panel" aria-label="Phòng chơi và trò chuyện" hidden>
+    <div class="social-heading">
+      <div>
+        <h2>Phòng chơi</h2>
+        <p>Mã mời: <strong id="room-code-display">------</strong></p>
+      </div>
+      <button id="copy-invite" class="small-button" type="button">Sao chép lời mời</button>
+    </div>
+    <p id="player-count">Đang kết nối...</p>
+    <p id="social-status" role="status" aria-live="polite"></p>
+    <ul id="player-list" aria-label="Người chơi trong phòng"></ul>
+    <section class="chat-section" aria-label="Chat trực tiếp">
+      <h3>Trò chuyện</h3>
+      <div id="chat-messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+      <form id="chat-form">
+        <input id="chat-input" type="text" maxlength="300" autocomplete="off" placeholder="Nhắn tin..." aria-label="Tin nhắn" />
+        <button class="small-button" type="submit">Gửi</button>
+      </form>
+    </section>
+  </aside>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "yen-thanh-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Game khám phá Yên Thành 3D với phòng chơi trực tuyến",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
