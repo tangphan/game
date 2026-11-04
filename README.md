@@ -22,6 +22,7 @@ Game web 3D phiêu lưu khám phá huyện Yên Thành, Nghệ An.
 - NPC và đàn cừu chuyển động; khu vực có mô tả và điểm tương tác riêng
 - Âm thanh gió, chim, nước ven sông, bước chân và tương tác (có nút tắt/mở)
 - Nhân vật 3D góc nhìn thứ ba với camera theo sau, minimap, WASD, Shift để chạy và E để khám phá
+- Hỗ trợ điện thoại với joystick cảm ứng, vuốt để xoay camera, các nút chạy/tương tác/xe máy/tạm dừng và lựa chọn hội thoại bằng chạm
 
 ## Cấu trúc thư mục
 

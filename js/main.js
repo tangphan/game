@@ -29,7 +29,13 @@ const {
   setName: setPlayerName,
   playerPosition,
   setPosition: setPlayerPosition,
-  getRidingState
+  getRidingState,
+  setTouchActive,
+  setTouchMovement,
+  lookByTouch,
+  touchAction,
+  getTouchActive,
+  answerTeacher
 } = createPlayer(camera, document.body, scene);
 
 const remotePlayers = new Map();
@@ -49,6 +55,8 @@ const roomCodeDisplay = document.getElementById('room-code-display');
 const playerCount = document.getElementById('player-count');
 const playerList = document.getElementById('player-list');
 const chatMessages = document.getElementById('chat-messages');
+const touchInterface = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+if (touchInterface) document.body.classList.add('touch-device');
 
 const invitedRoom = new URLSearchParams(window.location.hash.slice(1)).get('room');
 if (invitedRoom) roomCodeInput.value = invitedRoom.toUpperCase().slice(0, 6);
@@ -72,8 +80,7 @@ resumeButton.addEventListener('click', () => {
     resumeButton.hidden = true;
     return;
   }
-  activateAudio();
-  controls.lock();
+  startGameControls();
 });
 
 document.getElementById('copy-invite').addEventListener('click', async () => {
@@ -95,6 +102,11 @@ document.getElementById('chat-form').addEventListener('submit', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.code === 'Escape' && getTouchActive()) {
+    setTouchActive(false);
+    blocker.style.display = 'flex';
+    return;
+  }
   if (event.code !== 'Enter' || !controls.isLocked) return;
   controls.unlock();
   window.setTimeout(() => document.getElementById('chat-input').focus(), 0);
@@ -113,10 +125,112 @@ soundToggle.addEventListener('click', (event) => {
   window.dispatchEvent(new CustomEvent('game-audio-toggle', { detail: { muted: !muted } }));
 });
 
+function startGameControls() {
+  activateAudio();
+  if (touchInterface) {
+    setTouchActive(true);
+    blocker.style.display = 'none';
+    return;
+  }
+  controls.lock();
+}
+
+function setupTouchControls() {
+  const joystick = document.getElementById('move-stick');
+  const knob = document.getElementById('move-stick-knob');
+  let joystickPointer = null;
+  let lookPointer = null;
+  let previousLookPoint = null;
+
+  const updateJoystick = event => {
+    const bounds = joystick.getBoundingClientRect();
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+    const maxDistance = bounds.width * 0.34;
+    const dx = event.clientX - centerX;
+    const dy = event.clientY - centerY;
+    const distance = Math.min(Math.hypot(dx, dy), maxDistance);
+    const angle = Math.atan2(dy, dx);
+    const knobX = Math.cos(angle) * distance;
+    const knobY = Math.sin(angle) * distance;
+    knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+    setTouchMovement(knobX / maxDistance, knobY / maxDistance);
+  };
+
+  joystick.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    joystickPointer = event.pointerId;
+    joystick.setPointerCapture(event.pointerId);
+    updateJoystick(event);
+  });
+  joystick.addEventListener('pointermove', event => {
+    if (event.pointerId === joystickPointer) updateJoystick(event);
+  });
+  const releaseJoystick = event => {
+    if (event.pointerId !== joystickPointer) return;
+    joystickPointer = null;
+    knob.style.transform = 'translate(0, 0)';
+    setTouchMovement(0, 0);
+  };
+  joystick.addEventListener('pointerup', releaseJoystick);
+  joystick.addEventListener('pointercancel', releaseJoystick);
+
+  renderer.domElement.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch' || event.clientX < window.innerWidth * 0.38) return;
+    event.preventDefault();
+    lookPointer = event.pointerId;
+    previousLookPoint = { x: event.clientX, y: event.clientY };
+    renderer.domElement.setPointerCapture(event.pointerId);
+  });
+  renderer.domElement.addEventListener('pointermove', event => {
+    if (event.pointerId !== lookPointer || !previousLookPoint) return;
+    lookByTouch(event.clientX - previousLookPoint.x, event.clientY - previousLookPoint.y);
+    previousLookPoint = { x: event.clientX, y: event.clientY };
+  });
+  const releaseLook = event => {
+    if (event.pointerId !== lookPointer) return;
+    lookPointer = null;
+    previousLookPoint = null;
+  };
+  renderer.domElement.addEventListener('pointerup', releaseLook);
+  renderer.domElement.addEventListener('pointercancel', releaseLook);
+
+  document.querySelectorAll('[data-touch-action]').forEach(button => {
+    const action = button.dataset.touchAction;
+    if (action === 'run') {
+      button.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        button.setPointerCapture(event.pointerId);
+        touchAction('run');
+      });
+      ['pointerup', 'pointercancel'].forEach(type => {
+        button.addEventListener(type, () => touchAction('stop-run'));
+      });
+      return;
+    }
+    button.addEventListener('click', () => {
+      if (action === 'pause') {
+        setTouchActive(false);
+        blocker.style.display = 'flex';
+      } else {
+        touchAction(action);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-teacher-choice]').forEach(button => {
+    button.addEventListener('click', () => {
+      const choice = button.dataset.teacherChoice;
+      answerTeacher(choice === 'continue' || choice === 'close' ? choice : Number(choice));
+    });
+  });
+}
+
+setupTouchControls();
+
 async function startRoom(roomCode = '') {
   if (multiplayer.connected) {
-    activateAudio();
-    controls.lock();
+    startGameControls();
     return;
   }
 
@@ -153,8 +267,7 @@ async function startRoom(roomCode = '') {
     socialPanel.hidden = false;
     renderPlayerList();
     setConnectionStatus(`Đã vào phòng ${result.roomCode}. Chia sẻ mã mời cho bạn bè.`);
-    activateAudio();
-    controls.lock();
+    startGameControls();
   } catch (error) {
     setConnectionStatus(error.message);
     createButton.disabled = false;
@@ -177,9 +290,10 @@ function startSolo() {
   roomSetup.hidden = true;
   resumeButton.hidden = false;
   socialPanel.hidden = true;
-  setConnectionStatus('Bạn đang chơi một mình. Có thể nhấn Esc để tạm dừng.');
-  activateAudio();
-  controls.lock();
+  setConnectionStatus(touchInterface
+    ? 'Bạn đang chơi một mình. Dùng nút Tạm dừng trên màn hình để nghỉ.'
+    : 'Bạn đang chơi một mình. Có thể nhấn Esc để tạm dừng.');
+  startGameControls();
 }
 
 function setConnectionStatus(message) {

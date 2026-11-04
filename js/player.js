@@ -109,6 +109,11 @@ export function createPlayer(camera, domElement, scene) {
   let moveLeft = false;
   let moveRight = false;
   let isRunning = false;
+  let touchActive = false;
+  let touchMoveX = 0;
+  let touchMoveY = 0;
+
+  const isActive = () => controls.isLocked || touchActive;
 
   // Nhân vật visible (third-person body)
   const character = createCharacterModel();
@@ -126,6 +131,8 @@ export function createPlayer(camera, domElement, scene) {
         answerTeacherConversation(Number(e.code.slice(-1)));
       } else if (!teacherConversation.awaitingChoice && e.code === 'KeyE') {
         showTeacherQuestion();
+      } else if (e.code === 'KeyE') {
+        answerTeacherConversation(1);
       }
       return;
     }
@@ -137,10 +144,10 @@ export function createPlayer(camera, domElement, scene) {
       case 'ShiftLeft':
       case 'ShiftRight': isRunning = true; break;
       case 'KeyF':
-        if (controls.isLocked && !e.repeat) toggleScooter();
+        if (isActive() && !e.repeat) toggleScooter();
         break;
       case 'KeyE':
-        if (controls.isLocked && !ridingScooter && !startTeacherConversation()) {
+        if (isActive() && !ridingScooter && !startTeacherConversation()) {
           tryInteract(playerPosition, soundscape);
         }
         break;
@@ -185,9 +192,20 @@ export function createPlayer(camera, domElement, scene) {
       `${teacherConversation.teacher.name} mỉm cười: “Chào em! Em muốn hỏi điều gì?”`;
     document.getElementById('teacher-dialog-choices').textContent =
       '1 — Hỏi về trường/lớp  ·  2 — Xin lời khuyên  ·  3 — Chào tạm biệt';
+    document.querySelectorAll('[data-teacher-choice]').forEach(button => {
+      button.hidden = ['continue', 'close'].includes(button.dataset.teacherChoice);
+    });
   }
 
   function answerTeacherConversation(choice) {
+    if (choice === 'continue') {
+      showTeacherQuestion();
+      return;
+    }
+    if (choice === 'close') {
+      closeTeacherConversation();
+      return;
+    }
     const teacher = teacherConversation.teacher;
     teacherConversation.awaitingChoice = false;
     document.getElementById('teacher-dialog-text').textContent = choice === 3
@@ -195,12 +213,22 @@ export function createPlayer(camera, domElement, scene) {
       : teacher.replies[choice - 1];
     document.getElementById('teacher-dialog-choices').textContent =
       choice === 3 ? 'Q — Kết thúc trò chuyện' : 'E — Hỏi tiếp  ·  Q — Kết thúc trò chuyện';
+    const actions = document.querySelectorAll('[data-teacher-choice]');
+    actions.forEach(button => {
+      const option = button.dataset.teacherChoice;
+      button.hidden = choice === 3
+        ? option !== 'close'
+        : option !== 'continue' && option !== 'close';
+    });
     soundscape.playInteraction(false);
   }
 
   function closeTeacherConversation() {
     teacherConversation = null;
     document.getElementById('teacher-dialog').hidden = true;
+    document.querySelectorAll('[data-teacher-choice]').forEach(button => {
+      button.hidden = ['continue', 'close'].includes(button.dataset.teacherChoice);
+    });
   }
 
   function toggleScooter() {
@@ -251,16 +279,20 @@ export function createPlayer(camera, domElement, scene) {
   }
 
   function update(delta) {
-    if (!controls.isLocked) return;
+    if (!isActive()) return;
 
     soundscape.update(playerPosition, delta);
     const hint = document.getElementById('hint');
     if (ridingScooter) {
       hint.textContent = 'WASD lái xe máy · Dừng đèn đỏ · F xuống xe · Enter chat';
     } else if (getNearbyTeacher()) {
-      hint.textContent = 'E — Trò chuyện với thầy/cô · 1–3 chọn câu hỏi · Q kết thúc';
+      hint.textContent = touchActive
+        ? 'Tương tác — Trò chuyện với thầy/cô · Chọn câu hỏi trên màn hình'
+        : 'E — Trò chuyện với thầy/cô · 1–3 chọn câu hỏi · Q kết thúc';
     } else {
-      hint.textContent = 'WASD di chuyển · E khám phá · F lên xe máy · Shift chạy';
+      hint.textContent = touchActive
+        ? 'Joystick trái di chuyển · Vuốt phải xoay camera · Tương tác / Xe máy / Chạy'
+        : 'WASD di chuyển · E khám phá · F lên xe máy · Shift chạy';
     }
     if (!ridingScooter && greetingTimer <= 0) {
       const teacher = schoolTeachers.find(candidate =>
@@ -278,7 +310,8 @@ export function createPlayer(camera, domElement, scene) {
       greetingTimer = Math.max(0, greetingTimer - delta);
     }
 
-    const isMoving = moveForward || moveBackward || moveLeft || moveRight;
+    const isMoving = moveForward || moveBackward || moveLeft || moveRight ||
+      Math.abs(touchMoveX) > 0.08 || Math.abs(touchMoveY) > 0.08;
     if (trafficStopTime > 0) {
       trafficStopTime = Math.max(0, trafficStopTime - delta);
       velocity.set(0, 0, 0);
@@ -287,12 +320,12 @@ export function createPlayer(camera, domElement, scene) {
       const previousPosition = playerPosition.clone();
       velocity.x -= velocity.x * 12.0 * delta;
       velocity.z -= velocity.z * 12.0 * delta;
-      direction.z = Number(moveForward) - Number(moveBackward);
-      direction.x = Number(moveRight) - Number(moveLeft);
+      direction.z = Number(moveForward) - Number(moveBackward) - touchMoveY;
+      direction.x = Number(moveRight) - Number(moveLeft) + touchMoveX;
       direction.normalize();
 
-      if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
-      if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
+      if (Math.abs(direction.z) > 0) velocity.z -= direction.z * currentSpeed * delta;
+      if (Math.abs(direction.x) > 0) velocity.x -= direction.x * currentSpeed * delta;
       if (isMoving && !ridingScooter) walkTime += delta * (isRunning ? 13 : 8);
 
       cameraRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
@@ -377,6 +410,51 @@ export function createPlayer(camera, domElement, scene) {
     update,
     character,
     playerPosition,
+    setTouchActive: active => {
+      touchActive = active;
+      if (!active) {
+        touchMoveX = 0;
+        touchMoveY = 0;
+        isRunning = false;
+        moveForward = false;
+        moveBackward = false;
+        moveLeft = false;
+        moveRight = false;
+        velocity.set(0, 0, 0);
+      }
+    },
+    setTouchMovement: (x, y) => {
+      touchMoveX = THREE.MathUtils.clamp(x, -1, 1);
+      touchMoveY = THREE.MathUtils.clamp(y, -1, 1);
+    },
+    lookByTouch: (deltaX, deltaY) => {
+      if (!touchActive || teacherConversation) return;
+      camera.rotation.y -= deltaX * 0.004;
+      camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x - deltaY * 0.003, -0.75, 0.25);
+    },
+    touchAction: action => {
+      if (!touchActive) return;
+      if (action === 'interact') {
+        if (teacherConversation) {
+          if (teacherConversation.awaitingChoice) answerTeacherConversation(1);
+          else showTeacherQuestion();
+        } else if (!ridingScooter && !startTeacherConversation()) {
+          tryInteract(playerPosition, soundscape);
+        }
+      } else if (action === 'scooter') {
+        toggleScooter();
+      } else if (action === 'run') {
+        isRunning = true;
+      } else if (action === 'stop-run') {
+        isRunning = false;
+      } else if (action === 'pause') {
+        touchActive = false;
+      }
+    },
+    answerTeacher: choice => {
+      if (teacherConversation) answerTeacherConversation(choice);
+    },
+    getTouchActive: () => touchActive,
     setPosition: (x, z) => {
       playerPosition.set(x, 0, z);
       velocity.set(0, 0, 0);

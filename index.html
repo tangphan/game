@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Khám Phá Yên Thành</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -16,11 +16,30 @@
 
   <canvas id="minimap" width="180" height="180"></canvas>
 
+  <section id="touch-controls" aria-label="Điều khiển cảm ứng">
+    <div id="move-stick" aria-label="Cần điều khiển di chuyển">
+      <div id="move-stick-knob"></div>
+    </div>
+    <div id="touch-actions">
+      <button type="button" data-touch-action="run" aria-label="Giữ để chạy">Chạy</button>
+      <button type="button" data-touch-action="scooter">Xe máy</button>
+      <button type="button" data-touch-action="interact">Tương tác</button>
+      <button type="button" data-touch-action="pause">Tạm dừng</button>
+    </div>
+  </section>
+
   <div id="dialog"></div>
   <section id="teacher-dialog" role="dialog" aria-labelledby="teacher-dialog-title" aria-live="polite" hidden>
     <h2 id="teacher-dialog-title">Trò chuyện với thầy Nguyễn Đức Hiền</h2>
     <p id="teacher-dialog-text"></p>
     <p id="teacher-dialog-choices"></p>
+    <div id="teacher-dialog-actions">
+      <button type="button" data-teacher-choice="1">Hỏi về trường</button>
+      <button type="button" data-teacher-choice="2">Xin lời khuyên</button>
+      <button type="button" data-teacher-choice="3">Tạm biệt</button>
+      <button type="button" data-teacher-choice="continue" hidden>Hỏi tiếp</button>
+      <button type="button" data-teacher-choice="close" hidden>Kết thúc</button>
+    </div>
   </section>
 
   <div id="blocker">
@@ -49,6 +68,7 @@
         <li><b>F</b> — Lên/xuống xe máy</li>
         <li><b>Đèn đỏ</b> — Dừng xe; vượt đèn sẽ bị CSGT giữ lại</li>
         <li><b>Enter</b> — Mở chat</li>
+        <li class="touch-help">Điện thoại — Cần trái để đi, vuốt màn hình để xoay camera; Chạy, Xe máy, Tương tác và Tạm dừng ở góc phải</li>
       </ul>
       <p class="note">Đường chính có giao lộ, vạch qua đường và vỉa hè; mỗi xã có chợ và quán ăn mang tên địa phương. THPT Phan Đăng Lưu là trường học duy nhất, nằm trong thị trấn Yên Thành. Khám phá cầu Bến Hàng và những quầy hàng rong ở Phúc Thành; dừng xe khi đèn đỏ để tránh bị CSGT giữ lại.<br>
       Tạo phòng rồi gửi mã mời để chơi trực tuyến, hoặc chọn chơi một mình.</p>
