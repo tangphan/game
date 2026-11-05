@@ -1,11 +1,138 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { getCurrentZone, interactables, zones } from './zones.js';
+import { districtAreas, getCurrentZone, interactables, zones } from './zones.js';
 import { animated, getTrafficSignalState, roadHeightAt } from './world.js';
 
 let footstepTimer = 0;
 let currentZoneName = '';
 const schoolZone = zones.find(zone => zone.id === 'school');
+
+function buildSolidCollisionRects() {
+  const rects = [
+    // Khuôn viên trường: bỏ khe cổng ở giữa phía nam để người chơi vào ra
+    { x: -70, z: 0, w: 1.4, d: 132 },
+    { x: 70, z: 0, w: 1.4, d: 132 },
+    { x: 0, z: -66, w: 140, d: 1.4 },
+    { x: -40.5, z: 66, w: 58, d: 1.4 },
+    { x: 40.5, z: 66, w: 58, d: 1.4 },
+
+    // Các tòa nhà lớn trong trường
+    { x: -35, z: -43, w: 45, d: 19 },
+    { x: 20, z: -43, w: 27, d: 17 },
+    { x: 49, z: -43, w: 17, d: 17 },
+    { x: -53, z: -5, w: 17, d: 20 },
+    { x: 53, z: -5, w: 17, d: 20 },
+    { x: -47, z: 34, w: 22, d: 16 }
+  ].map(rect => ({
+    ...rect,
+    x: rect.x + schoolZone.x,
+    z: rect.z + schoolZone.z
+  }));
+
+  for (const area of districtAreas) {
+    const serviceZ = area.name === 'Bảo Thành'
+      ? area.z - 39
+      : area.name === 'Thị trấn Yên Thành'
+        ? area.z - 97
+        : area.z + 43;
+
+    const houseOffsets = [
+      [-35, -18],
+      [35, -18],
+      [-35, 18],
+      [35, 18]
+    ];
+    houseOffsets.forEach(([offsetX, offsetZ]) => {
+      rects.push({
+        x: area.x + offsetX,
+        z: area.z + offsetZ,
+        w: 8.3,
+        d: 7.2
+      });
+    });
+
+    rects.push({ x: area.x - 26, z: serviceZ, w: 18, d: 12 });
+    rects.push({ x: area.x, z: serviceZ, w: 22, d: 12 });
+  }
+
+  return rects;
+}
+
+const solidCollisionRects = buildSolidCollisionRects();
+
+function pointInsideRect(point, rect, margin = 0) {
+  const halfW = rect.w / 2 + margin;
+  const halfD = rect.d / 2 + margin;
+  return point.x >= rect.x - halfW && point.x <= rect.x + halfW
+    && point.z >= rect.z - halfD && point.z <= rect.z + halfD;
+}
+
+function orientation(p, q, r) {
+  const value = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+  if (Math.abs(value) < 1e-8) return 0;
+  return value > 0 ? 1 : 2;
+}
+
+function onSegment(p, q, r) {
+  return Math.min(p.x, r.x) <= q.x && q.x <= Math.max(p.x, r.x)
+    && Math.min(p.y, r.y) <= q.y && q.y <= Math.max(p.y, r.y);
+}
+
+function segmentsIntersect(p1, q1, p2, q2) {
+  const o1 = orientation(p1, q1, p2);
+  const o2 = orientation(p1, q1, q2);
+  const o3 = orientation(p2, q2, p1);
+  const o4 = orientation(p2, q2, q1);
+
+  if (o1 !== o2 && o3 !== o4) return true;
+  if (o1 === 0 && onSegment(p1, p2, q1)) return true;
+  if (o2 === 0 && onSegment(p1, q2, q1)) return true;
+  if (o3 === 0 && onSegment(p2, p1, q2)) return true;
+  if (o4 === 0 && onSegment(p2, q1, q2)) return true;
+  return false;
+}
+
+function segmentHitsRect(previousPosition, nextPosition, rect, margin = 0.5) {
+  const minX = rect.x - rect.w / 2 - margin;
+  const maxX = rect.x + rect.w / 2 + margin;
+  const minZ = rect.z - rect.d / 2 - margin;
+  const maxZ = rect.z + rect.d / 2 + margin;
+
+  if (pointInsideRect(previousPosition, rect, margin) || pointInsideRect(nextPosition, rect, margin)) {
+    return true;
+  }
+
+  const corners = [
+    { x: minX, y: minZ },
+    { x: maxX, y: minZ },
+    { x: maxX, y: maxZ },
+    { x: minX, y: maxZ }
+  ];
+
+  for (let i = 0; i < corners.length; i++) {
+    const a = corners[i];
+    const b = corners[(i + 1) % corners.length];
+    if (segmentsIntersect(
+      { x: previousPosition.x, y: previousPosition.z },
+      { x: nextPosition.x, y: nextPosition.z },
+      a,
+      b
+    )) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function resolveSolidCollision(previousPosition, nextPosition) {
+  for (const rect of solidCollisionRects) {
+    if (segmentHitsRect(previousPosition, nextPosition, rect)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function crossesSchoolBoundary(previousPosition, nextPosition) {
   if (!schoolZone) return false;
@@ -59,6 +186,8 @@ export function createPlayer(camera, domElement, scene) {
   const direction = new THREE.Vector3();
   let ridingScooter = false;
   let activeScooter = null;
+  let ridingHorse = false;
+  let activeHorse = null;
   let walkTime = 0;
   let trafficStopTime = 0;
   let greetingTimer = 0;
@@ -233,6 +362,20 @@ export function createPlayer(camera, domElement, scene) {
 
   function toggleScooter() {
     const position = playerPosition;
+    if (ridingHorse && activeHorse) {
+      activeHorse.userData.occupied = false;
+      activeHorse.userData.passenger.visible = true;
+      if (activeHorse.userData.rider) activeHorse.userData.rider.visible = false;
+      activeHorse = null;
+      ridingHorse = false;
+      velocity.set(0, 0, 0);
+      character.visible = true;
+      document.getElementById('hint').textContent =
+        'WASD di chuyển · E khám phá · F lên xe máy / cưỡi ngựa · Shift chạy';
+      showDialog('Bạn đã xuống ngựa.');
+      return;
+    }
+
     if (ridingScooter && activeScooter) {
       activeScooter.userData.occupied = false;
       activeScooter.userData.speed = 0;
@@ -245,8 +388,33 @@ export function createPlayer(camera, domElement, scene) {
       velocity.set(0, 0, 0);
       character.visible = true;
       document.getElementById('hint').textContent =
-        'WASD di chuyển · E khám phá · F lên xe máy · Shift chạy';
+        'WASD di chuyển · E khám phá · F lên xe máy / cưỡi ngựa · Shift chạy';
       showDialog('Bạn đã xuống xe máy. Nhấn F gần xe để đi tiếp.');
+      return;
+    }
+
+    let nearestHorse = null;
+    let nearestHorseDistance = Infinity;
+    animated.horses.forEach((horse) => {
+      if (horse.userData.occupied) return;
+      const distance = position.distanceTo(horse.position);
+      if (distance < nearestHorseDistance) {
+        nearestHorseDistance = distance;
+        nearestHorse = horse;
+      }
+    });
+
+    if (nearestHorse && nearestHorseDistance <= 8) {
+      activeHorse = nearestHorse;
+      activeHorse.userData.occupied = true;
+      activeHorse.userData.passenger.visible = false;
+      if (activeHorse.userData.rider) activeHorse.userData.rider.visible = true;
+      ridingHorse = true;
+      velocity.set(0, 0, 0);
+      character.visible = false;
+      document.getElementById('hint').textContent =
+        'WASD cưỡi ngựa · F xuống ngựa · Enter chat';
+      showDialog('Bạn đã cưỡi ngựa. Dùng WASD để đi, nhấn F để xuống ngựa.');
       return;
     }
 
@@ -262,7 +430,7 @@ export function createPlayer(camera, domElement, scene) {
     });
 
     if (!nearestScooter || nearestDistance > 9) {
-      showDialog('Đến gần một chiếc xe máy ven đường rồi nhấn F để lên xe.');
+      showDialog('Đến gần xe máy hoặc ngựa rồi nhấn F để lên.');
       return;
     }
 
@@ -283,7 +451,9 @@ export function createPlayer(camera, domElement, scene) {
 
     soundscape.update(playerPosition, delta);
     const hint = document.getElementById('hint');
-    if (ridingScooter) {
+    if (ridingHorse) {
+      hint.textContent = 'WASD cưỡi ngựa · F xuống ngựa · Enter chat';
+    } else if (ridingScooter) {
       hint.textContent = 'WASD lái xe máy · Dừng đèn đỏ · F xuống xe · Enter chat';
     } else if (getNearbyTeacher()) {
       hint.textContent = touchActive
@@ -292,7 +462,7 @@ export function createPlayer(camera, domElement, scene) {
     } else {
       hint.textContent = touchActive
         ? 'Joystick trái di chuyển · Vuốt phải xoay camera · Tương tác / Xe máy / Chạy'
-        : 'WASD di chuyển · E khám phá · F lên xe máy · Shift chạy';
+        : 'WASD di chuyển · E khám phá · F lên xe máy / cưỡi ngựa · Shift chạy';
     }
     if (!ridingScooter && greetingTimer <= 0) {
       const teacher = schoolTeachers.find(candidate =>
@@ -316,7 +486,7 @@ export function createPlayer(camera, domElement, scene) {
       trafficStopTime = Math.max(0, trafficStopTime - delta);
       velocity.set(0, 0, 0);
     } else {
-      const currentSpeed = ridingScooter ? scooterSpeed : isRunning ? runSpeed : speed;
+      const currentSpeed = ridingHorse ? 58 : ridingScooter ? scooterSpeed : isRunning ? runSpeed : speed;
       const previousPosition = playerPosition.clone();
       velocity.x -= velocity.x * 12.0 * delta;
       velocity.z -= velocity.z * 12.0 * delta;
@@ -326,7 +496,7 @@ export function createPlayer(camera, domElement, scene) {
 
       if (Math.abs(direction.z) > 0) velocity.z -= direction.z * currentSpeed * delta;
       if (Math.abs(direction.x) > 0) velocity.x -= direction.x * currentSpeed * delta;
-      if (isMoving && !ridingScooter) walkTime += delta * (isRunning ? 13 : 8);
+      if (isMoving && !ridingScooter && !ridingHorse) walkTime += delta * (isRunning ? 13 : 8);
 
       cameraRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
       cameraRight.y = 0;
@@ -337,7 +507,7 @@ export function createPlayer(camera, domElement, scene) {
       playerPosition.x = THREE.MathUtils.clamp(playerPosition.x, -1140, 1140);
       playerPosition.z = THREE.MathUtils.clamp(playerPosition.z, -1140, 1140);
 
-      if (crossesSchoolBoundary(previousPosition, playerPosition)) {
+      if (resolveSolidCollision(previousPosition, playerPosition) || crossesSchoolBoundary(previousPosition, playerPosition)) {
         playerPosition.copy(previousPosition);
         velocity.set(0, 0, 0);
       }
@@ -361,9 +531,9 @@ export function createPlayer(camera, domElement, scene) {
       playerPosition.z - cameraForward.z * 9
     );
     character.position.copy(playerPosition);
-    const stride = isMoving && !ridingScooter ? Math.sin(walkTime) * (isRunning ? 0.62 : 0.4) : 0;
+    const stride = isMoving && !ridingScooter && !ridingHorse ? Math.sin(walkTime) * (isRunning ? 0.62 : 0.4) : 0;
     character.position.y = roadHeightAt(playerPosition.x, playerPosition.z) - 0.2
-      + (isMoving && !ridingScooter ? Math.abs(Math.sin(walkTime)) * 0.09 : 0);
+      + (isMoving && !ridingScooter && !ridingHorse ? Math.abs(Math.sin(walkTime)) * 0.09 : 0);
     character.rotation.y = greetingTimer > 0
       ? greetingFacing
       : Math.atan2(cameraForward.x, cameraForward.z);
@@ -383,6 +553,18 @@ export function createPlayer(camera, domElement, scene) {
       leg.rotation.x = index === 0 ? -stride : stride;
     });
 
+    if (ridingHorse && activeHorse) {
+      activeHorse.position.set(
+        playerPosition.x,
+        roadHeightAt(playerPosition.x, playerPosition.z) + 0.2,
+        playerPosition.z
+      );
+      activeHorse.rotation.y = character.rotation.y;
+      activeHorse.userData.speed = Math.abs(velocity.z);
+      activeHorse.userData.rider.visible = true;
+      activeHorse.userData.passenger.visible = false;
+    }
+
     if (ridingScooter && activeScooter) {
       activeScooter.position.set(
         playerPosition.x,
@@ -394,7 +576,7 @@ export function createPlayer(camera, domElement, scene) {
     }
 
     // Footstep sound
-    if (isMoving && !ridingScooter) {
+    if (isMoving && !ridingScooter && !ridingHorse) {
       footstepTimer -= delta;
       if (footstepTimer <= 0) {
         soundscape.playFootstep();

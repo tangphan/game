@@ -10,6 +10,7 @@ export const animated = {
   sheep: [],
   traffic: [],
   scooters: [],
+  horses: [],
   trafficSignals: [],
   trafficSignal: { northSouth: 'green', eastWest: 'red' }
 };
@@ -2233,21 +2234,44 @@ function createSchoolParking(group) {
 
 function createSchoolTeachers(group) {
   const teachers = [
-    { name: 'Thầy Nguyễn Đức Hiền', x: -5.6, z: 72, color: 0x315d86, variation: 0 },
-    { name: 'Thầy Phan Văn Cường', x: 5.6, z: 72, color: 0x3f7058, variation: 1 },
-    { name: 'Cô Vân Anh', x: -9, z: 47, color: 0x9b4c54, variation: 2 },
-    { name: 'Cô Hồng', x: 9, z: 47, color: 0x805b92, variation: 3 }
+    { name: 'Thầy Nguyễn Đức Hiền', x: -11, z: 58, color: 0x315d86, variation: 0 },
+    { name: 'Thầy Phan Văn Cường', x: -3, z: 58, color: 0x3f7058, variation: 1 },
+    { name: 'Cô Nguyễn Quỳnh Nga', x: 3, z: 58, color: 0x9b4c54, variation: 2 },
+    { name: 'Cô Thân Thị Lịnh', x: 11, z: 58, color: 0x805b92, variation: 3 }
   ];
-  teachers.forEach((teacher, index) => {
+  teachers.forEach((teacher) => {
     const npc = makeNPC(teacher.color, teacher.variation);
     npc.position.set(teacher.x, 0, teacher.z);
     npc.scale.setScalar(0.88);
-    npc.rotation.y = index < 2 ? Math.PI : 0;
+    npc.rotation.y = Math.PI;
     const nameLabel = createFloatingLabel(teacher.name, 0x24485b);
     nameLabel.position.set(0, 3.6, 0);
-    nameLabel.scale.set(4.4, 0.78, 1);
+    nameLabel.scale.set(5.8, 0.86, 1);
     npc.add(nameLabel);
     group.add(npc);
+  });
+
+  const horsePositions = [
+    { x: -20, z: 51.5 },
+    { x: 20, z: 51.5 }
+  ];
+  horsePositions.forEach(({ x, z }, index) => {
+    const horse = makeHorse(index % 2 === 0 ? 0x8a5f2a : 0x7d4d2d);
+    horse.position.set(x, 0, z);
+    horse.rotation.y = Math.PI * 0.5;
+    horse.scale.setScalar(1.15);
+    const passenger = makeNPC(index % 2 === 0 ? 0x3b5f7b : 0xb45d47, index + 5);
+    passenger.position.set(-0.45, 1.02, 0.38);
+    passenger.scale.setScalar(0.48);
+    horse.add(passenger);
+    horse.userData.passenger = passenger;
+    horse.userData.rider = makeNPC(0x8b4e3d, index + 9);
+    horse.userData.rider.position.set(0.34, 1.0, -0.2);
+    horse.userData.rider.scale.setScalar(0.49);
+    horse.userData.rider.visible = false;
+    horse.add(horse.userData.rider);
+    animated.horses.push(horse);
+    group.add(horse);
   });
 }
 
@@ -3330,6 +3354,101 @@ function makeSheep() {
     g.add(leg);
   });
   return g;
+}
+
+function makeHorse(color = 0x8a5f2a, maneColor = 0x96723b) {
+  const horse = new THREE.Group();
+
+  const baseMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.9 });
+  const maneMaterial = new THREE.MeshStandardMaterial({ color: maneColor, roughness: 0.82 });
+  const lightMaterial = new THREE.MeshStandardMaterial({ color: 0xf1d7af, roughness: 0.9 });
+  const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x3a2316, roughness: 0.9 });
+  const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.75 });
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.1, 24, 20), baseMaterial);
+  body.scale.set(1.9, 1.2, 1.1);
+  body.position.y = 1.2;
+  body.castShadow = true;
+  horse.add(body);
+
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.8, 18, 16), baseMaterial);
+  chest.scale.set(1.2, 1.1, 0.94);
+  chest.position.set(0.7, 1.1, 0);
+  chest.castShadow = true;
+  horse.add(chest);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.72, 20, 18), baseMaterial);
+  head.scale.set(1.2, 1, 0.9);
+  head.position.set(2.05, 1.78, 0);
+  head.castShadow = true;
+  horse.add(head);
+
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.4, 18, 14), lightMaterial);
+  muzzle.scale.set(1.25, 0.9, 0.9);
+  muzzle.position.set(2.7, 1.68, 0);
+  horse.add(muzzle);
+
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.3), darkMaterial);
+  snout.position.set(3.02, 1.64, 0);
+  horse.add(snout);
+
+  const forelock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.82, 0.18), maneMaterial);
+  forelock.position.set(1.78, 2.18, 0.06);
+  forelock.rotation.z = 0.55;
+  horse.add(forelock);
+
+  const mane = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.8, 0.16), maneMaterial);
+  mane.position.set(1.8, 1.95, -0.22);
+  mane.rotation.z = 0.8;
+  horse.add(mane);
+
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.82, 0.14), maneMaterial);
+  tail.position.set(-1.35, 1.7, 0);
+  tail.rotation.z = 0.95;
+  horse.add(tail);
+
+  const earLeft = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.38, 12), baseMaterial);
+  earLeft.position.set(2.38, 2.46, 0.15);
+  earLeft.rotation.z = -0.2;
+  horse.add(earLeft);
+  const earRight = earLeft.clone();
+  earRight.position.z = -0.15;
+  horse.add(earRight);
+
+  const eyeLeft = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 10), eyeMaterial);
+  eyeLeft.position.set(2.46, 1.9, 0.18);
+  horse.add(eyeLeft);
+  const eyeRight = eyeLeft.clone();
+  eyeRight.position.z = -0.18;
+  horse.add(eyeRight);
+
+  const whitePatch = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), lightMaterial);
+  whitePatch.position.set(2.9, 1.8, 0);
+  whitePatch.scale.set(1.2, 0.7, 0.9);
+  horse.add(whitePatch);
+
+  [
+    [-0.9, 0.45, 0.42],
+    [-0.9, 0.45, -0.42],
+    [0.7, 0.45, 0.42],
+    [0.7, 0.45, -0.42]
+  ].forEach(([x, y, z]) => {
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.75, 6, 10), baseMaterial);
+    leg.position.set(x, y, z);
+    leg.castShadow = true;
+    horse.add(leg);
+
+    const hoof = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.16, 0.24), lightMaterial);
+    hoof.position.set(x, y - 0.58, z);
+    horse.add(hoof);
+  });
+
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), lightMaterial);
+  belly.scale.set(1.2, 1, 1.2);
+  belly.position.set(0.2, 0.92, 0);
+  horse.add(belly);
+
+  return horse;
 }
 
 function makeNPC(color, variation = 0) {
